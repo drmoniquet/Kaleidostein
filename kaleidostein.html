@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Kaleidostein — after Tender Buttons</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  /* 5. CSS custom properties (--brass, --parchment, etc.) for the token
+     system — standard CSS variables, MDN reference:
+     https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties */
+  :root{
+    --parchment: #efe3c8;
+    --parchment-deep: #e2d1a6;
+    --ink: #241a10;
+    --sepia: #6b5637;
+    --brass: #9c7a3c;
+    --brass-light: #cba764;
+    --glass-cool: #7d94a0;
+    --shadow: rgba(20,14,8,.55);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background:
+      radial-gradient(ellipse at 50% 20%, var(--parchment-deep), var(--parchment) 60%);
+    font-family: 'Libre Caslon Text', Caslon, Garamond, serif;
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  /* faint paper grain */
+  body::before{
+    content:"";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .10;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.4) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,.15) 0 1px, transparent 1px 4px);
+    mix-blend-mode: multiply;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 3.2rem 1.5rem 5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 1.4rem;
+  }
+
+  .eyebrow {
+    font-family: 'Courier Prime', monospace;
+    font-size: .68rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--sepia);
+  }
+
+  h1 {
+    font-weight: 700;
+    font-style: italic;
+    font-size: 2.6rem;
+    margin: .3rem 0 .1rem;
+    letter-spacing: .01em;
+  }
+
+  .subtitle {
+    font-family: 'Courier Prime', monospace;
+    font-size: .74rem;
+    letter-spacing: .1em;
+    color: var(--sepia);
+    text-transform: uppercase;
+  }
+
+  /* ---- the instrument ---- */
+
+  .instrument {
+    position: relative;
+    width: min(78vw, 460px);
+    aspect-ratio: 1;
+    margin: 2.2rem 0 1.4rem;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .instrument svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+    filter: drop-shadow(0 10px 24px var(--shadow));
+  }
+  .instrument.dragging svg { cursor: grabbing; }
+
+  .maker-mark {
+    font-family: 'Courier Prime', monospace;
+    font-size: .55rem;
+    letter-spacing: .08em;
+    fill: var(--brass);
+    opacity: .85;
+  }
+
+  /* ---- controls ---- */
+
+  .controls {
+    display: flex;
+    gap: .6rem;
+    margin-top: .6rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button.toy-btn {
+    font-family: 'Courier Prime', monospace;
+    font-size: .68rem;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    background: transparent;
+    color: var(--sepia);
+    border: 1px solid var(--brass);
+    padding: .55rem 1.1rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease;
+  }
+  button.toy-btn:hover { background: rgba(156,122,60,.12); }
+  button.toy-btn.active {
+    background: var(--brass);
+    color: var(--parchment);
+  }
+
+  .hint {
+    font-family: 'Courier Prime', monospace;
+    font-size: .62rem;
+    color: var(--sepia);
+    opacity: .7;
+    letter-spacing: .06em;
+    margin-top: .9rem;
+    text-align: center;
+  }
+
+  .poem-panel {
+    max-width: 440px;
+    margin: 1.5rem 0 .3rem;
+    text-align: center;
+    min-height: 4.4em;
+  }
+  .poem-panel .cap {
+    font-family: 'Courier Prime', monospace;
+    font-size: .6rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--sepia);
+    opacity: .7;
+    margin-bottom: .5rem;
+  }
+  .poem-text {
+    font-style: italic;
+    font-size: 1.15rem;
+    line-height: 1.65;
+    color: var(--ink);
+    white-space: pre-line;
+    transition: opacity .25s ease;
+  }
+  .poem-note {
+    font-family: 'Courier Prime', monospace;
+    font-size: .62rem;
+    letter-spacing: .06em;
+    color: var(--sepia);
+    opacity: .65;
+    margin-top: .9rem;
+  }
+
+  /* ---- source text ---- */
+
+  .source {
+    margin-top: .2rem;
+    padding-bottom: 1.4rem;
+    border-bottom: 1px solid rgba(107,86,55,.3);
+    max-width: 520px;
+    text-align: center;
+  }
+  .source p {
+    font-style: italic;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--sepia);
+    margin: 0 0 .55rem;
+  }
+  .source .attribution {
+    font-family: 'Courier Prime', monospace;
+    font-size: .62rem;
+    letter-spacing: .05em;
+    color: var(--sepia);
+    opacity: .75;
+  }
+  .source .attribution em {
+    font-style: italic;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow">A Philosophical Toy — No. 2</div>
+    <h1>Kaleidostein</h1>
+    <div class="subtitle">after “Tender Buttons” · Gertrude Stein</div>
+  </header>
+
+  <div class="source">
+    <p>“An ordinary color, a color is that strange mixture which makes, which does make which does not make a ripe juice which does not make a mat. A work which is a winding a real winding of the cloaking of a relaxing rescue.”</p>
+    <div class="attribution">Stein, Gertrude. &ldquo;BREAKFAST,&rdquo; <em>Tender Buttons</em>, Claire Marie, 1914, p.&nbsp;43.</div>
+  </div>
+
+  <div class="instrument" id="instrument">
+    <svg id="scope" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="wedgeClip">
+          <path id="wedgePath" d=""></path>
+        </clipPath>
+        <clipPath id="circleClip">
+          <circle cx="300" cy="300" r="284"></circle>
+        </clipPath>
+        <radialGradient id="ripeFill" cx="35%" cy="30%" r="80%">
+          <stop offset="0%" stop-color="#fbf6e8"></stop>
+          <stop offset="35%" stop-color="var(--glass-cool)"></stop>
+          <stop offset="100%" stop-color="#2f2415"></stop>
+        </radialGradient>
+        <radialGradient id="glassSheen" cx="30%" cy="25%" r="90%">
+          <stop offset="0%" stop-color="#fffef8" stop-opacity=".9"></stop>
+          <stop offset="18%" stop-color="#fffef8" stop-opacity="0"></stop>
+        </radialGradient>
+        <filter id="seedGlow" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#cba764" flood-opacity="0.95"></feDropShadow>
+        </filter>
+      </defs>
+
+      <!-- bezel -->
+      <circle cx="300" cy="300" r="296" fill="none" stroke="var(--brass)" stroke-width="10"></circle>
+      <circle cx="300" cy="300" r="296" fill="none" stroke="var(--brass-light)" stroke-width="2"></circle>
+      <g id="ticks"></g>
+      <text class="maker-mark" x="300" y="586" text-anchor="middle">PATENT TOY · TURN GENTLY</text>
+
+      <!-- glass interior -->
+      <g clip-path="url(#circleClip)">
+        <circle cx="300" cy="300" r="284" fill="#3a2c17"></circle>
+        <g id="rotor" transform="rotate(0 300 300)">
+          <g id="wedgeCopies"></g>
+        </g>
+        <circle cx="300" cy="300" r="284" fill="url(#glassSheen)" style="mix-blend-mode:screen; opacity:.5"></circle>
+      </g>
+
+      <circle cx="300" cy="300" r="284" fill="none" stroke="#1a1208" stroke-width="4"></circle>
+    </svg>
+  </div>
+
+  <div class="poem-panel">
+    <div class="cap">the wind's poem</div>
+    <p id="poemText" class="poem-text"></p>
+    <div class="poem-note">Each turn writes a new poem from Stein's words.</div>
+  </div>
+
+  <div class="controls">
+    <button class="toy-btn" id="finishBtn">Finish: Ripe</button>
+    <button class="toy-btn" id="cloakBtn">Cloaking: On</button>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  // 1. The kaleidoscope illusion is one real "seed" wedge, clipped to a
+  //    pie-slice with SVG <clipPath>, then repeated 6 times around the
+  //    center with alternating scale(-1,1) flips — a trick used in
+  //    countless CodePen kaleidoscope demos, going back to how physical
+  //    kaleidoscopes use 2-3 real mirrors to multiply one object.
+  //    MDN's docs on <clipPath> and SVG transform cover the primitives:
+  //    https://developer.mozilla.org/en-US/docs/Web/SVG/Element/clipPath
+  const NS = "http://www.w3.org/2000/svg";
+  const WEDGE_DEG = 60;
+  const COPIES = 6;
+  const CENTER = {x:300, y:300};
+
+  // ---- fixed shards: steady scaffolding only. everything with real semantic
+  // charge (mixture, cloaking, rescue, makes/does-not-make, ripe/mat) lives
+  // in VAR_POOL below and gets reassigned to new positions on every turn —
+  // this is what makes the tumble genuine rather than a rotated repaint.
+  const FIXED = [
+    {a:8,  r:245, s:14, cls:"steady", lines:["AN ORDINARY","COLOR"]},
+    {a:46, r:150, s:13, cls:"steady", lines:["a color is"]},
+    {a:52, r:255, s:13, cls:"steady", lines:["A WORK"]},
+    {a:6,  r:190, s:11, cls:"steady", lines:["which is a","winding"]},
+    {a:56, r:125, s:11, cls:"steady", lines:["a real","winding"]},
+  ];
+
+  // ---- generative poem: every phrase-unit from the source, with Stein's own repeats intact
+  const POEM_BAG = [
+    "An ordinary color", "a color is", "that strange mixture",
+    "which makes", "which does make", "which does not make",
+    "a ripe juice", "which does not make", "a mat",
+    "A work", "which is a winding", "a real winding",
+    "of the cloaking", "of a relaxing rescue"
+  ];
+
+  function shuffledCopy(arr){
+    const a = [...arr];
+    for(let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  function generatePoem(){
+    const bag = shuffledCopy(POEM_BAG);
+    const count = 6 + Math.floor(Math.random()*4); // 6-9 chunks
+    const chunks = bag.slice(0, count);
+    const lines = [];
+    let i = 0;
+    while(i < chunks.length){
+      const lineLen = 2 + Math.floor(Math.random()*2); // 2-3 chunks per line
+      lines.push(chunks.slice(i, i+lineLen).join(", "));
+      i += lineLen;
+    }
+    let poem = lines.join(",\n");
+    poem = poem.charAt(0).toUpperCase() + poem.slice(1) + ".";
+    const poemEl = document.getElementById("poemText");
+    poemEl.style.opacity = 0;
+    setTimeout(()=>{
+      poemEl.textContent = poem;
+      poemEl.style.opacity = 1;
+    }, 180);
+  }
+
+  generatePoem();
+
+  // ---- tumbling slots: 5 positions, reshuffled from an 8-phrase pool on
+  // each 60deg click — three of these positions are the old mixture/
+  // cloaking/rescue spots, now hosting whichever phrase lands there.
+  const VAR_SLOTS = [
+    {a:18, r:95,  s:12},   // was "mixture"
+    {a:40, r:58,  s:12},   // was "cloaking"
+    {a:14, r:40,  s:12},   // was "rescue"
+    {a:30, r:205, s:12},
+    {a:11, r:112, s:12},
+  ];
+  const VAR_POOL = [
+    "which makes","which does make","which does not make",
+    "a ripe juice","a mat",
+    "that strange mixture","of the cloaking","of a relaxing rescue"
+  ];
+
+  let cloaked = true;
+  let ripe = true;
+  let currentVarText = VAR_POOL.slice(0,5);
+
+  const wedgeCopiesEl = document.getElementById("wedgeCopies");
+  const rotorEl = document.getElementById("rotor");
+  const ticksEl = document.getElementById("ticks");
+  const wedgePathEl = document.getElementById("wedgePath");
+
+  // pie-sector clip path for the wedge (0deg to WEDGE_DEG, radius 284)
+  function polar(cx,cy,r,deg){
+    const rad = (deg-90) * Math.PI/180;
+    return {x: cx + r*Math.cos(rad), y: cy + r*Math.sin(rad)};
+  }
+  (function(){
+    const r = 284;
+    const p0 = polar(CENTER.x, CENTER.y, r, 0);
+    const p1 = polar(CENTER.x, CENTER.y, r, WEDGE_DEG);
+    wedgePathEl.setAttribute("d",
+      `M ${CENTER.x} ${CENTER.y} L ${p0.x} ${p0.y} A ${r} ${r} 0 0 1 ${p1.x} ${p1.y} Z`);
+  })();
+
+  // bezel ticks
+  for(let i=0;i<48;i++){
+    const deg = i * (360/48);
+    const p1 = polar(CENTER.x, CENTER.y, 296, deg);
+    const p2 = polar(CENTER.x, CENTER.y, i%12===0 ? 286 : 291, deg);
+    const line = document.createElementNS(NS,"line");
+    line.setAttribute("x1",p1.x); line.setAttribute("y1",p1.y);
+    line.setAttribute("x2",p2.x); line.setAttribute("y2",p2.y);
+    line.setAttribute("stroke", i%12===0 ? "var(--brass-light)" : "rgba(255,255,255,.25)");
+    line.setAttribute("stroke-width", i%12===0 ? 2 : 1);
+    ticksEl.appendChild(line);
+  }
+
+  function textFillClass(){
+    return ripe ? "url(#ripeFill)" : "var(--sepia)";
+  }
+
+  function buildSeedWedge(){
+    const g = document.createElementNS(NS,"g");
+    g.setAttribute("id","seedWedge");
+
+    const bg = document.createElementNS(NS,"path");
+    bg.setAttribute("d", wedgePathEl.getAttribute("d"));
+    bg.setAttribute("fill", cloaked ? "#3a2c17" : "#4a3a20");
+    bg.setAttribute("id","seedBg");
+    g.appendChild(bg);
+
+    const seedOutline = document.createElementNS(NS,"path");
+    seedOutline.setAttribute("d", wedgePathEl.getAttribute("d"));
+    seedOutline.setAttribute("fill","none");
+    seedOutline.setAttribute("stroke", cloaked ? "none" : "var(--brass-light)");
+    seedOutline.setAttribute("stroke-width", cloaked ? "1.5" : "2.5");
+    if(cloaked){ seedOutline.setAttribute("stroke-dasharray","4 3"); }
+    else { seedOutline.removeAttribute("stroke-dasharray"); }
+    seedOutline.setAttribute("id","seedOutline");
+    g.appendChild(seedOutline);
+
+    // label that identifies the one real wedge, only visible uncloaked —
+    // travels with the wedge as the barrel turns, so it always marks the source
+    const labelPt = polar(CENTER.x, CENTER.y, 272, 30);
+    const label = document.createElementNS(NS,"text");
+    label.setAttribute("x", labelPt.x);
+    label.setAttribute("y", labelPt.y);
+    label.setAttribute("text-anchor","middle");
+    label.setAttribute("font-family","'Courier Prime', monospace");
+    label.setAttribute("font-size","10");
+    label.setAttribute("letter-spacing","2");
+    label.setAttribute("fill","#fbf1d8");
+    label.setAttribute("opacity", cloaked ? "0" : "1");
+    label.setAttribute("transform", `rotate(30 ${labelPt.x} ${labelPt.y})`);
+    label.textContent = "SOURCE";
+    g.appendChild(label);
+
+    function addText(a, r, size, cls, linesArr){
+      const p = polar(CENTER.x, CENTER.y, r, a);
+      const t = document.createElementNS(NS,"text");
+      t.setAttribute("x", p.x);
+      t.setAttribute("y", p.y);
+      t.setAttribute("text-anchor","middle");
+      t.setAttribute("font-family","'Libre Caslon Text', serif");
+      t.setAttribute("font-style", cls==="var" ? "italic" : "normal");
+      t.setAttribute("font-weight", cls==="emph" ? "700" : "400");
+      t.setAttribute("font-size", size);
+      t.setAttribute("fill", textFillClass());
+      t.setAttribute("opacity", cloaked ? "0.94" : (cls==="seedhighlight" ? "1" : "0.7"));
+      t.setAttribute("transform", `rotate(${a} ${p.x} ${p.y})`);
+      linesArr.forEach((line,i)=>{
+        const tsp = document.createElementNS(NS,"tspan");
+        tsp.setAttribute("x", p.x);
+        tsp.setAttribute("dy", i===0 ? 0 : size*1.05);
+        tsp.textContent = line;
+        t.appendChild(tsp);
+      });
+      g.appendChild(t);
+    }
+
+    FIXED.forEach(f => addText(f.a, f.r, f.s, f.cls, f.lines));
+    VAR_SLOTS.forEach((slot,i) => addText(slot.a, slot.r, slot.s, "var", [currentVarText[i]]));
+
+    return g;
+  }
+
+  function render(){
+    wedgeCopiesEl.innerHTML = "";
+    const seed = buildSeedWedge();
+
+    for(let i=0;i<COPIES;i++){
+      const deg = i * WEDGE_DEG;
+      const holder = document.createElementNS(NS,"g");
+      holder.setAttribute("transform", `rotate(${deg} ${CENTER.x} ${CENTER.y})`);
+
+      const inner = document.createElementNS(NS,"g");
+      const mirrored = i % 2 === 1;
+      if(mirrored){
+        inner.setAttribute("transform",
+          `translate(${2*CENTER.x} 0) scale(-1 1)`);
+      }
+      const isSeed = i === 0;
+      inner.setAttribute("clip-path","url(#wedgeClip)");
+      if(!cloaked && !isSeed){
+        inner.style.opacity = "0.14";
+        inner.style.filter = "grayscale(1)";
+      } else {
+        inner.style.opacity = "1";
+        inner.style.filter = (!cloaked && isSeed) ? "url(#seedGlow)" : "none";
+      }
+
+      const seedClone = seed.cloneNode(true);
+      if(isSeed && !cloaked){
+        seedClone.querySelector("#seedBg").setAttribute("fill","#503e22");
+      }
+      inner.appendChild(seedClone);
+      holder.appendChild(inner);
+      wedgeCopiesEl.appendChild(holder);
+    }
+  }
+
+  render();
+
+  // ---- rotation / drag physics ----
+  const instrument = document.getElementById("instrument");
+  let rotation = 0;
+  let dragging = false;
+  let lastAngle = 0;
+  let lastTime = 0;
+  let velocity = 0; // deg per ms
+  let momentumRAF = null;
+  let lastClickBoundary = 0;
+  const TUMBLE_STEP_DEG = 14; // fine-grained: content shifts continuously as you turn,
+                               // independent of the 60deg wedge-click used for visual snap
+
+  // 2. Drag rotation converts the pointer position to an angle via
+  //    Math.atan2(dy, dx), tracking delta-angle per frame.
+  //    See MDN's Math.atan2() page:
+  //    https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/atan2
+  function angleFromEvent(evt){
+    const rect = instrument.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
+    const dx = evt.clientX - cx;
+    const dy = evt.clientY - cy;
+    return Math.atan2(dy,dx) * 180/Math.PI;
+  }
+
+  function setRotation(deg){
+    rotation = deg;
+    rotorEl.setAttribute("transform", `rotate(${rotation} 300 300)`);
+    checkBoundaryShuffle();
+  }
+
+  function checkBoundaryShuffle(){
+    const boundary = Math.floor(rotation / TUMBLE_STEP_DEG);
+    if(boundary !== lastClickBoundary){
+      lastClickBoundary = boundary;
+      shuffleVars();
+    }
+  }
+
+  function shuffleVars(){
+    const pool = [...VAR_POOL];
+    for(let i=pool.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [pool[i],pool[j]] = [pool[j],pool[i]];
+    }
+    currentVarText = pool.slice(0,5);
+    render();
+  }
+
+  function pointerDown(evt){
+    dragging = true;
+    instrument.classList.add("dragging");
+    cancelMomentum();
+    lastAngle = angleFromEvent(evt);
+    lastTime = performance.now();
+    velocity = 0;
+    instrument.setPointerCapture && evt.pointerId!=null && instrument.setPointerCapture(evt.pointerId);
+  }
+
+  function pointerMove(evt){
+    if(!dragging) return;
+    const angle = angleFromEvent(evt);
+    let delta = angle - lastAngle;
+    if(delta > 180) delta -= 360;
+    if(delta < -180) delta += 360;
+    const now = performance.now();
+    const dt = Math.max(now - lastTime, 1);
+    velocity = delta / dt;
+    setRotation(rotation + delta);
+    lastAngle = angle;
+    lastTime = now;
+  }
+
+  function pointerUp(){
+    if(!dragging) return;
+    dragging = false;
+    instrument.classList.remove("dragging");
+    runMomentum();
+  }
+
+  function runMomentum(){
+    cancelMomentum();
+    const friction = 0.94;
+    function step(){
+      velocity *= friction;
+      setRotation(rotation + velocity * 16);
+      if(Math.abs(velocity) > 0.01){
+        momentumRAF = requestAnimationFrame(step);
+      } else {
+        settle();
+      }
+    }
+    momentumRAF = requestAnimationFrame(step);
+  }
+
+  function cancelMomentum(){
+    if(momentumRAF){ cancelAnimationFrame(momentumRAF); momentumRAF = null; }
+  }
+
+  // 3. Snap-to-nearest-angle easing — a cubic ease-out (1 - (1-t)^3)
+  //    interpolating rotation to the nearest 60deg multiple. Standard
+  //    easing-function math (Robert Penner's easing equations are the
+  //    usual citation for this family of formulas, freely published
+  //    since the early 2000s).
+  function settle(){
+    const nearest = Math.round(rotation / WEDGE_DEG) * WEDGE_DEG;
+    const start = rotation;
+    const dist = nearest - start;
+    const duration = 320;
+    const t0 = performance.now();
+    function ease(t){ return 1 - Math.pow(1-t, 3); }
+    function anim(now){
+      const t = Math.min((now - t0)/duration, 1);
+      setRotation(start + dist * ease(t));
+      if(t < 1){ requestAnimationFrame(anim); }
+      else { pulseAndReveal(); }
+    }
+    requestAnimationFrame(anim);
+  }
+
+  function pulseAndReveal(){
+    const scope = document.getElementById("scope");
+    scope.style.transition = "transform .28s ease";
+    scope.style.transform = "scale(1.025)";
+    setTimeout(()=>{ scope.style.transform = "scale(1)"; }, 280);
+    generatePoem();
+  }
+
+  // 4. Pointer Events API (pointerdown/pointermove/pointerup) instead of
+  //    separate mouse/touch handlers — MDN:
+  //    https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events
+  instrument.addEventListener("pointerdown", pointerDown);
+  window.addEventListener("pointermove", pointerMove);
+  window.addEventListener("pointerup", pointerUp);
+  instrument.addEventListener("pointerleave", ()=>{ if(!dragging) return; });
+
+  // ---- toggles ----
+  const finishBtn = document.getElementById("finishBtn");
+  const cloakBtn = document.getElementById("cloakBtn");
+
+  finishBtn.addEventListener("click", ()=>{
+    ripe = !ripe;
+    finishBtn.textContent = "Finish: " + (ripe ? "Ripe" : "Mat");
+    finishBtn.classList.toggle("active", !ripe);
+    render();
+  });
+
+  cloakBtn.addEventListener("click", ()=>{
+    cloaked = !cloaked;
+    cloakBtn.textContent = "Cloaking: " + (cloaked ? "On" : "Off");
+    cloakBtn.classList.toggle("active", !cloaked);
+    render();
+  });
+
+})();
+</script>
+
+</body>
+</html>
